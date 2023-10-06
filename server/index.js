@@ -9,9 +9,15 @@ import http from "http";
 import axios from "axios";
 import { addFriend, removeFriend, friendRequest } from "./utils/friendsOperations.js";
 import { likePost, unlikePost, commentPost, likeComment } from "./utils/postsOperations.js";
+import { createRequire } from 'module'; 
+const require = createRequire(import.meta.url);
+require('dotenv').config();
+
+const PORT = process.env.PORT || 3001;
 
 const app = express();
 const server = http.createServer(app);
+app.use(cors({origin: '*'}));
 const onlineUsers = {};
 
 
@@ -24,10 +30,10 @@ let db;
 const start = async () => {
   try {
     await mongoose.connect(
-      "mongodb+srv://naor223:Naor6579080@cluster0.bxyka0c.mongodb.net/?retryWrites=true&w=majority"
+      process.env.MONGO_CONNECTION_STRING
     );
     db = mongoose.connection;
-    server.listen(3001, () => console.log("Server running on port 3001"));
+    server.listen(PORT, () => console.log("Server running on port " + PORT));
   } catch (e) {
     console.log("Could not connect to MongoDB");
   }
@@ -197,7 +203,7 @@ const getGetLocation = async (req) => {
     ipAddress = res.data.ip;
   }
 
-  const res = await axios.get(`https://api.ipgeolocation.io/ipgeo?apiKey=b4a1acba7eb348ee9397946281bb8f6b&ip=${ipAddress}`);
+  const res = await axios.get(`https://api.ipgeolocation.io/ipgeo?apiKey=${process.env.IP_GEO_API}&ip=${ipAddress}`);
   const location = res.data;
   const { city, country_name } = location;
   return { city: city, country: country_name };
