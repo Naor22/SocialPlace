@@ -4,7 +4,7 @@ let socket;
 
 export const initializeSocket = (userId) => {
   if (!socket) {
-    socket = io('http://localhost:3001', {
+    socket = io('https://api.social-place.com', {
       query: {
         userId: userId,
       },

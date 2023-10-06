@@ -1,10 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "http://localhost:3001",
-    Headers: {
-      "Access-Control-Allow-Origin": "*",
-    },
-  });
+  baseURL: "https://api.social-place.com",
+});
 
-  export default api;
+export default api;
