@@ -7,27 +7,19 @@ import bcrypt from "bcrypt";
 import { Server } from "socket.io";
 import http from "http";
 import axios from "axios";
-import {
-  addFriend,
-  removeFriend,
-  friendRequest,
-} from "./utils/friendsOperations.js";
-import {
-  likePost,
-  unlikePost,
-  commentPost,
-  likeComment,
-} from "./utils/postsOperations.js";
-import { createRequire } from "module";
+import { addFriend, removeFriend, friendRequest } from "./utils/friendsOperations.js";
+import { likePost, unlikePost, commentPost, likeComment } from "./utils/postsOperations.js";
+import { createRequire } from 'module'; 
 const require = createRequire(import.meta.url);
-require("dotenv").config();
+require('dotenv').config();
 
 const PORT = process.env.PORT || 3001;
 
 const app = express();
 const server = http.createServer(app);
-app.use(cors({ origin: "*" }));
+app.use(cors({origin: '*'}));
 const onlineUsers = {};
+
 
 const io = new Server(server, {
   cors: {
@@ -37,7 +29,9 @@ const io = new Server(server, {
 let db;
 const start = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_CONNECTION_STRING);
+    await mongoose.connect(
+      process.env.MONGO_CONNECTION_STRING
+    );
     db = mongoose.connection;
     server.listen(PORT, () => console.log("Server running on port " + PORT));
   } catch (e) {
@@ -85,67 +79,65 @@ io.on("connection", async (socket) => {
       onlineUsers[friendId] ? true : false
     );
     io.to(socketId).emit("checkOnline-response", onlineFriends);
-  });
+  }
+  );
 
-  socket.on("like", async (data) => {
+  socket.on('like', async (data) => {
     const { userId, postId } = data;
     likePost(postId, userId, io, onlineUsers, null);
   });
 
-  socket.on("unlike", async (data) => {
+
+  socket.on('unlike', async (data) => {
     const { userId, postId } = data;
     unlikePost(postId, userId, onlineUsers, io, "websocket");
   });
 
-  socket.on("comment", async (data) => {
+  socket.on('comment', async (data) => {
     const { postId, userId, content, create_at } = data;
     commentPost(postId, userId, content, create_at, io, onlineUsers);
   });
 
-  socket.on("addFriend", async (data) => {
+  socket.on('addFriend', async (data) => {
     const { userId, friendId } = data;
     addFriend(userId, friendId, io, onlineUsers, null);
   });
 
-  socket.on("friendRequest", async (data) => {
+
+  socket.on('friendRequest', async (data) => {
     const { userId, friendId, notificationId, accept } = data;
-    friendRequest(
-      userId,
-      friendId,
-      notificationId,
-      accept,
-      io,
-      onlineUsers,
-      null
-    );
+    friendRequest(userId, friendId, notificationId, accept, io, onlineUsers, null);
   });
 
-  socket.on("removeFriend", async (data) => {
+
+  socket.on('removeFriend', async (data) => {
     const { userId, friendId } = data;
     removeFriend(userId, friendId, io, onlineUsers, null);
   });
 
-  socket.on("likeComment", async (data) => {
+  socket.on('likeComment', async (data) => {
     const { userId, postId, comment } = data;
     likeComment(userId, postId, comment, io, onlineUsers, null);
-  });
+  }
 
-  socket.on("getFriends", async (data) => {
-    // not used yet
+  );
+
+
+  socket.on('getFriends', async (data) => { // not used yet
     const { user } = data;
     const friends = await getFriends(user);
     const friendsOb = await User.find({ _id: { $in: friends } });
-    io.to(onlineUsers[user]).emit("getFriends-response", {
-      success: true,
-      data: friendsOb,
-    });
+    io.to(onlineUsers[user]).emit('getFriends-response', { success: true, data: friendsOb });
   });
 
-  socket.on("checkChats", async (data) => {
+
+
+  socket.on('checkChats', async (data) => {
+
     try {
       const { userId, friendId } = data;
       const chat = await Chat.findOne({
-        users: { $all: [userId, friendId] },
+        users: { $all: [userId, friendId] }
       });
 
       if (chat) {
@@ -153,23 +145,19 @@ io.on("connection", async (socket) => {
           { path: "users", select: "-password -posts -friends -email" },
         ]);
 
-        io.to(socketId).emit("checkChats-response", {
-          success: true,
-          data: chat,
-        });
+
+        io.to(socketId).emit('checkChats-response', { success: true, data: chat });
       } else {
-        io.to(socketId).emit("checkChats-response", {
-          success: true,
-          data: null,
-        });
+
+        io.to(socketId).emit('checkChats-response', { success: true, data: null });
       }
     } catch (error) {
       console.error(error);
-      io.to(socketId).emit("checkChats-response", { success: false });
+      io.to(socketId).emit('checkChats-response', { success: false });
     }
   });
 
-  socket.on("sendMessage", async (data) => {
+  socket.on('sendMessage', async (data) => {
     const { chatId, userId, content, created_at } = data;
     try {
       const msg = {
@@ -188,42 +176,38 @@ io.on("connection", async (socket) => {
       );
       const userSocketId = onlineUsers[userId];
       if (userSocketId) {
-        io.to(userSocketId).emit("sendMessage-response", { success: true });
+        io.to(userSocketId).emit('sendMessage-response', { success: true });
       }
       const sentMsg = chatOb.messages[chatOb.messages.length - 1];
-      const friendId = chatOb.users.find(
-        (user) => user._id.toString() !== userId.toString()
-      )._id;
+      const friendId = chatOb.users.find((user) => user._id.toString() !== userId.toString())._id;
       const friendSocketId = onlineUsers[friendId];
       if (friendSocketId) {
-        io.to(friendSocketId).emit("chatMsg", {
-          data: sentMsg,
-          chatId: chatId,
-        });
+        io.to(friendSocketId).emit('chatMsg', { data: sentMsg, chatId: chatId });
       }
     } catch (error) {
       console.error(error);
-      io.to(socketId).emit("sendMessage-response", { success: false });
+      io.to(socketId).emit('sendMessage-response', { success: false });
     }
   });
+
+
 });
 
-const getGetLocation = async (req) => {
-  let ipAddress =
-    req.headers["x-forwarded-for"] || req.connection.remoteAddress;
 
-  if (ipAddress.includes(":") || ipAddress === "127.0.0.1") {
-    const res = await axios.get("https://api.ipify.org?format=json");
+
+const getGetLocation = async (req) => {
+  let ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+
+  if (ipAddress.includes(':') || ipAddress === '127.0.0.1') {
+    const res = await axios.get('https://api.ipify.org?format=json');
     ipAddress = res.data.ip;
   }
 
-  const res = await axios.get(
-    `https://api.ipgeolocation.io/ipgeo?apiKey=${process.env.IP_GEO_API}&ip=${ipAddress}`
-  );
+  const res = await axios.get(`https://api.ipgeolocation.io/ipgeo?apiKey=${process.env.IP_GEO_API}&ip=${ipAddress}`);
   const location = res.data;
   const { city, country_name } = location;
   return { city: city, country: country_name };
-};
+}
 
 const populateUser = async (userId) => {
   return await User.findById(userId).populate([
@@ -339,12 +323,7 @@ app.post("/login", async (req, res) => {
 });
 
 app.post("/friendrequest", async (req, res) => {
-  const {
-    user: userId,
-    friend: friendId,
-    notification: notificationId,
-    accept,
-  } = req.body;
+  const { user: userId, friend: friendId, notification: notificationId, accept } = req.body;
   friendRequest(userId, friendId, notificationId, accept, null, null, res);
 });
 
@@ -365,20 +344,17 @@ app.get("/getprofile", async (req, res) => {
     const userOb = await populateUser(user);
     return res.status(200).send(userOb);
   } else {
-    const userOb = await Promise.all(
-      user.map(async (id) => await populateUser(id))
-    );
+    const userOb = await Promise.all(user.map(async (id) => await populateUser(id)));
     return res.status(200).send(userOb);
   }
 });
 
-app.get("/health", (req, res) => res.status(200).send("OK"));
-
-app.post("/addinterests", async (req, res) => {
+app.post('/addinterests', async (req, res) => {
   const { userId, interests } = req.body;
   await User.updateOne({ _id: userId }, { $set: { interests: interests } });
   return res.status(201).send();
 });
+
 
 const getFriends = async (userID) => {
   const userOb = await User.find({ _id: userID });
@@ -391,6 +367,7 @@ app.get("/getfriends", async (req, res) => {
   const friendsOb = await User.find({ _id: { $in: friends } });
   return res.status(200).send(friendsOb);
 });
+
 
 const getFeed = async (user) => {
   const friends = await getFriends(user);
@@ -406,23 +383,22 @@ const getFeed = async (user) => {
 
 const getSuggestedFriendsByInterests = async (user) => {
   try {
-    const userDoc = await User.findOne({ _id: user }).select(
-      "interests friends -_id"
-    );
+
+    const userDoc = await User.findOne({ _id: user }).select("interests friends -_id");
     const userInterests = userDoc ? userDoc.interests : [];
     const userFriends = userDoc ? userDoc.friends : [];
 
     const sameInterests = await User.find({
       _id: { $ne: user, $nin: userFriends },
-      interests: { $in: userInterests },
+      interests: { $in: userInterests }
     }).limit(5);
 
-    const suggestedFriends = sameInterests.map((friend) => {
+    const suggestedFriends = sameInterests.map(friend => {
       return {
         ...friend.toObject(),
-        reason: "interest",
-      };
-    });
+        reason: "interest"
+      }
+    })
 
     return suggestedFriends;
   } catch (error) {
@@ -433,22 +409,20 @@ const getSuggestedFriendsByInterests = async (user) => {
 
 const getSuggestedFriendsByLocation = async (user) => {
   try {
-    const userDoc = await User.findOne({ _id: user }).select(
-      "city friends -_id"
-    );
+    const userDoc = await User.findOne({ _id: user }).select("city friends -_id");
     const userCity = userDoc ? userDoc.city : "";
     const userFriends = userDoc ? userDoc.friends : [];
 
     const sameLocation = await User.find({
       _id: { $ne: user, $nin: userFriends },
-      city: userCity,
+      city: userCity
     }).limit(5);
-    const suggestedFriends = sameLocation.map((friend) => {
+    const suggestedFriends = sameLocation.map(friend => {
       return {
         ...friend.toObject(),
-        reason: "location",
-      };
-    });
+        reason: "location"
+      }
+    })
 
     return suggestedFriends;
   } catch (error) {
@@ -457,30 +431,27 @@ const getSuggestedFriendsByLocation = async (user) => {
   }
 };
 
+
 const mergeAndRemoveDuplicates = (arr1, arr2) => {
   const seen = new Map();
   return arr1.concat(arr2).filter((item) => {
     const itemId = item._id?.toString();
     return !seen.has(itemId) && seen.set(itemId, true);
   });
-};
+}
 
-app.get("/getSuggestedFriends", async (req, res) => {
+app.get('/getSuggestedFriends', async (req, res) => {
   const { user } = req.query;
-  const suggestedFriendsByInterests = await getSuggestedFriendsByInterests(
-    user
-  );
+  const suggestedFriendsByInterests = await getSuggestedFriendsByInterests(user);
   const suggestedFriendsByLocation = await getSuggestedFriendsByLocation(user);
-  const mergedSuggestedFriends = mergeAndRemoveDuplicates(
-    suggestedFriendsByInterests,
-    suggestedFriendsByLocation
-  );
+  const mergedSuggestedFriends = mergeAndRemoveDuplicates(suggestedFriendsByInterests, suggestedFriendsByLocation);
   return res.status(200).send(mergedSuggestedFriends);
-});
+}
+);
 
 app.get("/feed", async (req, res) => {
   const { user } = req.query;
-  const feed = await getFeed(user);
+  const feed = await getFeed(user)
 
   return res.status(200).send({ feed: feed });
 });
@@ -528,9 +499,7 @@ app.post("/comment", async (req, res) => {
     await commentPost(postId, userId, content, create_at, null, null);
     res.status(201).send({ success: true });
   } catch (error) {
-    res
-      .status(500)
-      .send({ success: false, message: "Failed to comment on the post." });
+    res.status(500).send({ success: false, message: 'Failed to comment on the post.' });
   }
 });
 //   const postOb = await Post.findOneAndUpdate(
@@ -560,6 +529,7 @@ app.post("/like", async (req, res) => {
   likePost(postId, userId, null, null, res);
 });
 
+
 app.post("/unlike", async (req, res) => {
   const { userId, postId } = req.body;
   try {
@@ -569,6 +539,7 @@ app.post("/unlike", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
+
 
 app.post("/likecomment", async (req, res) => {
   const { userID, postId, comment } = req.body;
